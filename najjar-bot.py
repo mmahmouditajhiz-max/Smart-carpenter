@@ -6,10 +6,9 @@ import logging
 from pathlib import Path
 from flask import Flask, request
 from telebot import TeleBot, types
-from openai import OpenAI
-
-# Agent
-from core.h_agent import h_agent
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+import uuid
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')
@@ -17,98 +16,54 @@ log = logging.getLogger(__name__)
 
 # Environment
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# اطلاعات تماس ادمین (خودت)
-ADMIN_TELEGRAM_LINK = "https://t.me/dragonfly_support"  # لینک مستقیم تلگرامت
-ADMIN_PHONE = "09304413044"  # شماره تلفن واقعی خودت
-
-if not TELEGRAM_TOKEN or not OPENAI_API_KEY:
-    log.error("TELEGRAM_TOKEN or OPENAI_API_KEY missing!")
-    raise ValueError("Required variables missing")
+if not TELEGRAM_TOKEN:
+    log.error("TELEGRAM_TOKEN missing!")
+    raise ValueError("TELEGRAM_TOKEN required")
 
 # Initialize
 bot = TeleBot(TELEGRAM_TOKEN)
-client = OpenAI(api_key=OPENAI_API_KEY)
 
-user_state = {}  # وضعیت کاربر
-user_data = {}   # داده‌های برش بهینه
+user_state = {}
+user_data = {}  # برای ذخیره ورق و قطعات
 IMG_PATH = Path("images")
 
-# Keyboards
+# اطلاعات تماس
+ADMIN_TELEGRAM_LINK = "https://t.me/hossein_torabparvar"  # لینک واقعی خودت
+ADMIN_PHONE = "09123456789"  # شماره واقعی خودت
+
+# منو اصلی
 def main_menu():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    kb.add("📋 کاتالوگ محصولات", "✂️ برش بهینه")
+    kb.add("📋 کاتالوگ", "✂️ برش بهینه")
     kb.add("📞 تماس با من", "📦 ثبت سفارش")
     kb.add("💻 نسخه دیجیتال حسین")
     return kb
 
-# Start
+# شروع
 @bot.message_handler(commands=["start"])
 def start(msg):
-    try:
-        with open(IMG_PATH / "welcome.jpg", "rb") as photo:
-            bot.send_photo(
-                msg.chat.id,
-                photo,
-                caption=(
-                    "🌳 سلام دوست من!\n"
-                    "به کارگاه دیجیتال حسین تراب‌پرور خوش اومدی 🛠️\n"
-                    "۱۵ سال تجربه نجاری و MDF کاری در خدمتتم\n"
-                    "هر چی بخوای می‌سازم، راهنمایی می‌کنم، برات محاسبه می‌کنم!\n\n"
-                    "از منوی زیر انتخاب کن 👇"
-                ),
-                reply_markup=main_menu()
-            )
-    except Exception as e:
-        log.error(f"[Start Photo Error] {e}")
-        bot.send_message(
-            msg.chat.id,
-            "سلام! حسین تراب‌پرور هستم 🛠️\nآماده‌ام کمکت کنم.\nاز منو انتخاب کن:",
-            reply_markup=main_menu()
-        )
-
-# Button Handlers
-@bot.message_handler(func=lambda m: m.text == "📋 کاتالوگ محصولات")
-def catalog(msg):
-    user_state[msg.chat.id] = "catalog"
-    try:
-        with open(IMG_PATH / "catalog.jpg", "rb") as photo:
-            bot.send_photo(
-                msg.chat.id,
-                photo,
-                caption="📸 کاتالوگ کارهای اخیرم:\nکابینت، کمد، میز، دکور و...\nاگر خوشت اومد، بگو برات مشابهش رو طراحی کنم!"
-            )
-    except Exception as e:
-        log.error(f"[Catalog Photo Error] {e}")
-        bot.send_message(msg.chat.id, "کاتالوگ آماده‌ست! بگو چی دوست داری تا نمونه بفرستم.")
-    bot.send_message(msg.chat.id, "برگشت به منو:", reply_markup=main_menu())
-
-@bot.message_handler(func=lambda m: m.text == "✂️ برش بهینه")
-def cut_optimize(msg):
-    user_state[msg.chat.id] = "cut_stock"
-    user_data[msg.chat.id] = {"parts": []}
-    try:
-        with open(IMG_PATH / "cut.jpg", "rb") as photo:
-            bot.send_photo(
-                msg.chat.id,
-                photo,
-                caption="✂️ برش بهینه پیشرفته — کمترین پرتی!\n\nابعاد ورق اصلی رو بفرست (به cm):\nمثال: 183x366"
-            )
-    except Exception as e:
-        log.error(f"[Cut Photo Error] {e}")
-        bot.send_message(msg.chat.id, "ابعاد ورق اصلی رو بفرست (مثال: 183x366)")
-
-@bot.message_handler(func=lambda m: m.text == "📞 تماس با من")
-def contact_me(msg):
     bot.send_message(
         msg.chat.id,
-        (
-            "📞 برای مشاوره مستقیم و سریع با من در ارتباط باش:\n\n"
-            f"تلگرام: {ADMIN_TELEGRAM_LINK}\n"
-            f"شماره تلفن: <code>{ADMIN_PHONE}</code>\n\n"
-            "کافیه روی لینک تلگرام کلیک کنی، مستقیم وارد چت می‌شی 🛠️😊"
-        ),
+        "🌳 سلام! به کارگاه حسین تراب‌پرور خوش اومدی 🛠️\n"
+        "۱۵ سال تجربه نجاری و MDF دارم\n"
+        "از منوی زیر انتخاب کن:",
+        reply_markup=main_menu()
+    )
+
+# دکمه‌ها
+@bot.message_handler(func=lambda m: m.text == "📋 کاتالوگ")
+def catalog(msg):
+    bot.send_message(msg.chat.id, "📸 کاتالوگ کارهایم آماده‌ست!\nبگو چی دوست داری تا نمونه بفرستم.", reply_markup=main_menu())
+
+@bot.message_handler(func=lambda m: m.text == "📞 تماس با من")
+def contact(msg):
+    bot.send_message(
+        msg.chat.id,
+        f"📞 تماس مستقیم با من:\n\n"
+        f"تلگرام: {ADMIN_TELEGRAM_LINK}\n"
+        f"شماره: {ADMIN_PHONE}\n\n"
+        f"کلیک کن روی لینک، مستقیم وارد چت می‌شی 🛠️",
         parse_mode="HTML",
         disable_web_page_preview=True,
         reply_markup=main_menu()
@@ -117,58 +72,41 @@ def contact_me(msg):
 @bot.message_handler(func=lambda m: m.text == "📦 ثبت سفارش")
 def order(msg):
     user_state[msg.chat.id] = "order"
-    bot.send_message(
-        msg.chat.id,
-        "📦 عالی! سفارش رو ثبت کنیم\n"
-        "نام، شماره تماس و توضیحات کامل (ابعاد، طرح، نوع چوب، رنگ...) رو بنویس.\n"
-        "به زودی باهات تماس می‌گیرم."
-    )
+    bot.send_message(msg.chat.id, "نام، شماره و توضیحات سفارش رو بنویس.\nبه زودی تماس می‌گیرم.", reply_markup=main_menu())
 
 @bot.message_handler(func=lambda m: m.text == "💻 نسخه دیجیتال حسین")
 def digital_hossein(msg):
-    user_state[msg.chat.id] = "digital_hossein"
-    try:
-        with open(IMG_PATH / "hossein.jpg", "rb") as photo:
-            bot.send_photo(
-                msg.chat.id,
-                photo,
-                caption=(
-                    "سلام دوست من! 😊\n"
-                    "من حسین تراب‌پرورم — نجار حرفه‌ای با ۱۵ سال سابقه\n"
-                    "اینجا نسخه دیجیتال منم، ولی دقیقاً مثل خودم جواب می‌دم 🛠️\n"
-                    "هر سوالی داری بپرس — از طراحی کابینت تا تعمیر مبل، همه رو بلدم!\n"
-                    "بگو ببینم، چی می‌خوای بسازی؟ 🌲"
-                )
-            )
-    except Exception as e:
-        log.error(f"[Hossein Photo Error] {e}")
-        bot.send_message(
-            msg.chat.id,
-            "سلام! من حسین تراب‌پرورم 🛠️\n"
-            "۱۵ سال تجربه دارم و آماده‌ام کمکت کنم.\n"
-            "سوالت چیه؟"
-        )
+    user_state[msg.chat.id] = "digital"
+    bot.send_message(
+        msg.chat.id,
+        "💻 نسخه دیجیتال حسین تراب‌پرور فعال شد!\n\n"
+        "سلام! منم حسین، ولی نسخه دیجیتالش 😊\n"
+        "هر سوالی بپرس — کابینت، تعمیر، ابزار، هزینه...\n"
+        "بگو چی می‌خوای؟ 🛠️",
+        reply_markup=main_menu()
+    )
 
-# General Chat Handler — اصلاح شده (مهم‌ترین بخش!)
+# برش بهینه — شروع
+@bot.message_handler(func=lambda m: m.text == "✂️ برش بهینه")
+def cut_start(msg):
+    user_state[msg.chat.id] = "cut_stock"
+    user_data[msg.chat.id] = {"parts": []}
+    bot.send_message(msg.chat.id, "✂️ برش بهینه پیشرفته شروع شد!\n\nابعاد ورق اصلی رو بفرست (cm):\nمثال: 183x366")
+
+# هندلر عمومی — شامل برش بهینه کامل
 @bot.message_handler(func=lambda m: True)
-def chat(msg):
+def general_handler(msg):
     cid = msg.chat.id
     state = user_state.get(cid)
 
-    if state == "digital_hossein":
-        try:
-            reply = h_agent.generate_response(msg.text)
-            bot.send_message(cid, reply)
-        except Exception as e:
-            log.error(f"[H Agent Error] {e}")
-            bot.send_message(cid, "متاسفانه نسخه دیجیتال الان در دسترس نیست 😔 دوباره امتحان کن.")
-        bot.register_next_step_handler_by_chat_id(cid, chat)
+    if state == "digital":
+        # نسخه دیجیتال (اگر بخوای بعداً اضافه کنی)
+        bot.send_message(cid, "نسخه دیجیتال در حال توسعه است... به زودی با هوش مصنوعی جواب می‌دم!")
 
     elif state == "cut_stock":
         try:
             w, h = map(float, msg.text.split('x'))
             user_data[cid]["stock"] = (w, h)
-            user_data[cid]["parts"] = []
             bot.send_message(cid, f"ورق اصلی ثبت شد: {w}×{h} cm ✅\n\nحالا ابعاد قطعات رو یکی یکی بفرست:\nمثال: 100x50\nوقتی تموم شد بنویس: تمام")
             user_state[cid] = "cut_parts"
         except:
@@ -176,11 +114,7 @@ def chat(msg):
 
     elif state == "cut_parts":
         if msg.text.lower() == "تمام":
-            bot.send_message(cid, "در حال محاسبه برش بهینه...\nبه زودی نقشه واقعی و درصد پرتی رو می‌فرستم 🛠️")
-            if cid in user_data:
-                del user_data[cid]
-            user_state.pop(cid, None)
-            bot.send_message(cid, "چیزی دیگه نیاز داری؟", reply_markup=main_menu())
+            generate_cut_plan(cid)
         else:
             try:
                 w, h = map(float, msg.text.split('x'))
@@ -190,14 +124,86 @@ def chat(msg):
                 bot.send_message(cid, "فرمت اشتباه! مثال درست: 100x50")
 
     elif state == "order":
-        bot.send_message(cid, "سفارشت ثبت شد! به زودی تماس می‌گیرم 🙏", reply_markup=main_menu())
+        bot.send_message(cid, "سفارشت ثبت شد! به زودی تماس می‌گیرم 🙏")
         user_state.pop(cid, None)
 
     else:
-        # اگر هیچ حالتی نبود — فقط منو نشون بده
-        bot.send_message(cid, "از منوی زیر انتخاب کن 👇", reply_markup=main_menu())
+        bot.send_message(cid, "از منو انتخاب کن 👇", reply_markup=main_menu())
 
-# Flask Webhook
+# برش بهینه — تولید نقشه واقعی
+def generate_cut_plan(cid):
+    stock_w, stock_h = user_data[cid]["stock"]
+    parts = sorted(user_data[cid]["parts"], key=lambda x: -max(x))  # مرتب‌سازی برای کمترین پرتی
+
+    bins = []  # هر ورق یک bin
+    for pw, ph in parts:
+        placed = False
+        for bin in bins:
+            if pw <= bin['remain_w'] and ph <= bin['remain_h']:
+                bin['items'].append((pw, ph, bin['used_w'], bin['used_h']))
+                bin['used_h'] += ph
+                placed = True
+                break
+            # چرخش 90 درجه
+            if ph <= bin['remain_w'] and pw <= bin['remain_h']:
+                bin['items'].append((ph, pw, bin['used_w'], bin['used_h']))
+                bin['used_h'] += pw
+                placed = True
+                break
+        if not placed:
+            bins.append({
+                'remain_w': stock_w,
+                'remain_h': stock_h,
+                'used_w': 0,
+                'used_h': 0,
+                'items': [(pw, ph, 0, 0)]
+            })
+
+    # رسم نقشه با matplotlib
+    fig, axs = plt.subplots(1, len(bins), figsize=(6 * len(bins), 6))
+    if len(bins) == 1:
+        axs = [axs]
+
+    total_area = sum(p[0] * p[1] for p in parts)
+    used_area = len(bins) * stock_w * stock_h
+    waste = 100 * (1 - total_area / used_area) if used_area > 0 else 0
+
+    for idx, bin in enumerate(bins):
+        ax = axs[idx]
+        ax.add_patch(Rectangle((0, 0), stock_w, stock_h, fill=None, edgecolor='black', linewidth=3))
+        for pw, ph, x, y in bin['items']:
+            ax.add_patch(Rectangle((x, y), pw, ph, facecolor='#1E90FF', edgecolor='white', linewidth=2))
+            ax.text(x + pw/2, y + ph/2, f"{pw}×{ph}", ha='center', va='center', color='white', fontweight='bold', fontsize=10)
+        ax.set_xlim(0, stock_w + 10)
+        ax.set_ylim(0, stock_h + 10)
+        ax.set_aspect('equal')
+        ax.set_title(f"ورق {idx+1}", fontsize=14)
+        ax.axis('off')
+
+    filename = f"cut_plan_{uuid.uuid4()}.png"
+    plt.tight_layout()
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    plt.close()
+
+    caption = (
+        f"✂️ نقشه برش بهینه آماده شد!\n\n"
+        f"تعداد ورق مصرفی: {len(bins)}\n"
+        f"درصد پرتی: {waste:.1f}%\n"
+        f"متریال مصرفی: {total_area / 10000:.2f} مترمربع\n"
+        f"بهینه‌سازی حرفه‌ای مثل Cut Master Pro!"
+    )
+
+    with open(filename, "rb") as photo:
+        bot.send_photo(cid, photo, caption=caption)
+
+    os.remove(filename)
+
+    # پاک کردن داده‌ها
+    del user_data[cid]
+    user_state.pop(cid, None)
+    bot.send_message(cid, "چیزی دیگه نیاز داری؟", reply_markup=main_menu())
+
+# Webhook
 app = Flask(__name__)
 
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
@@ -208,11 +214,12 @@ def webhook():
 
 @app.route("/")
 def home():
-    return "بات نجاری حسین تراب‌پرور آنلاینه 🛠️"
+    return "بات حسین تراب‌پرور آنلاینه 🛠️"
 
 if __name__ == "__main__":
-    log.info("بات نجاری حسین تراب‌پرور در حال اجراست...")
+    log.info("بات شروع شد...")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
