@@ -34,7 +34,7 @@ IMG_PATH = Path("images")
 def main_menu():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     kb.add("📋 کاتالوگ محصولات", "✂️ برش بهینه")
-    kb.add("🧠 مشاوره سریع", "📦 ثبت سفارش")
+    kb.add("📞 تماس با من", "📦 ثبت سفارش")
     kb.add("💻 نسخه دیجیتال حسین")
     return kb
 
@@ -94,19 +94,33 @@ def cut_optimize(msg):
         bot.send_message(msg.chat.id, "ابعاد ورق اصلی رو بفرست (مثال: 183x366)")
     # ادامه در chat handler
 
-@bot.message_handler(func=lambda m: m.text == "🧠 مشاوره سریع")
-def quick_consult(msg):
-    user_state[msg.chat.id] = "quick_ai"
+@bot.message_handler(func=lambda m: m.text == "📞 تماس با من")
+def contact_me(msg):
     try:
-        with open(IMG_PATH / "consult.jpg", "rb") as photo:
+        with open(IMG_PATH / "contact.jpg", "rb") as photo:  # عکس تماس اگر داری
             bot.send_photo(
                 msg.chat.id,
                 photo,
-                caption="سوالت چیه؟\nنجاری، ابزار، چوب، MDF، ایمنی، هزینه... هر چی بپرس جواب می‌دم!"
+                caption=(
+                    "📞 برای مشاوره مستقیم و سریع با من در ارتباط باش:\n\n"
+                    f"تلگرام: {ADMIN_TELEGRAM}\n"
+                    f"شماره تلفن: {ADMIN_PHONE}\n\n"
+                    "هر سوالی داری، پیام بده یا زنگ بزن — همیشه در خدمتم 🛠️😊"
+                ),
+                reply_markup=main_menu()
             )
     except Exception as e:
-        log.error(f"[Consult Photo Error] {e}")
-        bot.send_message(msg.chat.id, "سوالت چیه؟ هر چی بپرس جواب می‌دم 🧠")
+        log.error(f"[Contact Photo Error] {e}")
+        bot.send_message(
+            msg.chat.id,
+            (
+                "📞 برای مشاوره مستقیم با من در ارتباط باش:\n\n"
+                f"تلگرام: {ADMIN_TELEGRAM}\n"
+                f"شماره تلفن: {ADMIN_PHONE}\n\n"
+                "هر سوالی داری، پیام بده یا زنگ بزن — همیشه در خدمتم 🛠️😊"
+            ),
+            reply_markup=main_menu()
+        )
 
 @bot.message_handler(func=lambda m: m.text == "📦 ثبت سفارش")
 def order(msg):
@@ -194,5 +208,6 @@ def home():
 if __name__ == "__main__":
     log.info("بات نجاری حسین تراب‌پرور در حال اجراست...")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
