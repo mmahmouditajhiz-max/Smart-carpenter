@@ -8,8 +8,8 @@ from flask import Flask, request
 from telebot import TeleBot, types
 from openai import OpenAI
 
-# Agents
-from h_agent import HAgent  # نسخه دیجیتال حسین
+# Agent
+from core.h_agent import h_agent
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')
@@ -27,11 +27,8 @@ if not TELEGRAM_TOKEN or not OPENAI_API_KEY:
 bot = TeleBot(TELEGRAM_TOKEN)
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-user_state = {}  # وضعیت کاربر: "catalog", "cut", "digital", etc.
-IMG_PATH = Path("images")  # پوشه عکس‌ها
-
-# Agents
-h_agent = HAgent()  # نسخه دیجیتال حسین
+user_state = {}
+IMG_PATH = Path("images")
 
 # Keyboards
 def main_menu():
@@ -41,7 +38,7 @@ def main_menu():
     kb.add("💻 نسخه دیجیتال حسین")
     return kb
 
-# Command Handlers
+# Start
 @bot.message_handler(commands=["start"])
 def start(msg):
     try:
@@ -59,8 +56,12 @@ def start(msg):
                 reply_markup=main_menu()
             )
     except Exception as e:
-        log.error(f"[Start Error] {e}")
-        bot.send_message(msg.chat.id, "سلام! آماده‌ام کمکت کنم 🛠️", reply_markup=main_menu())
+        log.error(f"[Start Photo Error] {e}")
+        bot.send_message(
+            msg.chat.id,
+            "سلام! حسین تراب‌پرور هستم 🛠️\nآماده‌ام کمکت کنم.\nاز منو انتخاب کن:",
+            reply_markup=main_menu()
+        )
 
 # Button Handlers
 @bot.message_handler(func=lambda m: m.text == "📋 کاتالوگ محصولات")
@@ -71,10 +72,11 @@ def catalog(msg):
             bot.send_photo(
                 msg.chat.id,
                 photo,
-                caption="📸 کاتالوگ کارهای اخیرم:\nکابینت، کمد، میز، دکور و...\nعکس‌ها رو ببین، اگر خوشت اومد بگو برات مشابهش رو طراحی کنم!"
+                caption="📸 کاتالوگ کارهای اخیرم:\nکابینت، کمد، میز، دکور و...\nاگر خوشت اومد، بگو برات مشابهش رو طراحی کنم!"
             )
-    except:
-        bot.send_message(msg.chat.id, "کاتالوگ آماده‌ست! بگو چی می‌خوای تا برات نمونه بفرستم.")
+    except Exception as e:
+        log.error(f"[Catalog Photo Error] {e}")
+        bot.send_message(msg.chat.id, "کاتالوگ آماده‌ست! بگو چی دوست داری تا نمونه بفرستم.")
     bot.send_message(msg.chat.id, "برگشت به منو:", reply_markup=main_menu())
 
 @bot.message_handler(func=lambda m: m.text == "✂️ برش بهینه")
@@ -85,9 +87,10 @@ def cut_optimize(msg):
             bot.send_photo(
                 msg.chat.id,
                 photo,
-                caption="✂️ برش بهینه MDF — کمترین پرتی، بیشترین صرفه!\n\nابعاد ورق اصلی رو بفرست (مثال: 183x366)"
+                caption="✂️ برش بهینه پیشرفته — کمترین پرتی، بیشترین صرفه!\n\nابعاد ورق اصلی رو بفرست (مثال: 183x366)"
             )
-    except:
+    except Exception as e:
+        log.error(f"[Cut Photo Error] {e}")
         bot.send_message(msg.chat.id, "ابعاد ورق اصلی رو بفرست (مثال: 183x366)")
     # ادامه در chat handler
 
@@ -101,7 +104,8 @@ def quick_consult(msg):
                 photo,
                 caption="سوالت چیه؟\nنجاری، ابزار، چوب، MDF، ایمنی، هزینه... هر چی بپرس جواب می‌دم!"
             )
-    except:
+    except Exception as e:
+        log.error(f"[Consult Photo Error] {e}")
         bot.send_message(msg.chat.id, "سوالت چیه؟ هر چی بپرس جواب می‌دم 🧠")
 
 @bot.message_handler(func=lambda m: m.text == "📦 ثبت سفارش")
@@ -131,18 +135,18 @@ def digital_hossein(msg):
                 )
             )
     except Exception as e:
-        log.error(f"[Digital Hossein Photo Error] {e}")
+        log.error(f"[Hossein Photo Error] {e}")
         bot.send_message(
             msg.chat.id,
             "سلام! من حسین تراب‌پرورم 🛠️\n"
-            "۱۵ سال تجربه نجاری و MDF دارم و آماده‌ام کمکت کنم.\n"
+            "۱۵ سال تجربه دارم و آماده‌ام کمکت کنم.\n"
             "سوالت چیه؟"
         )
 
 # General Chat Handler
 @bot.message_handler(func=lambda m: True)
 def chat(msg):
-    state = user_state.get(msg.chat.id, None)
+    state = user_state.get(msg.chat.id)
 
     if state == "digital_hossein":
         try:
@@ -150,7 +154,9 @@ def chat(msg):
             bot.send_message(msg.chat.id, reply)
         except Exception as e:
             log.error(f"[H Agent Error] {e}")
-            bot.send_message(msg.chat.id, "متاسفانه الان نمی‌تونم جواب بدم 😔 دوباره امتحان کن.")
+            bot.send_message(msg.chat.id, "متاسفانه نسخه دیجیتال الان در دسترس نیست 😔 دوباره امتحان کن.")
+        # ادامه چت
+        bot.register_next_step_handler_by_chat_id(msg.chat.id, chat)
 
     elif state == "quick_ai":
         try:
@@ -162,13 +168,12 @@ def chat(msg):
         except Exception as e:
             bot.send_message(msg.chat.id, "خطا در هوش مصنوعی — دوباره امتحان کن.")
 
-    elif state == "cut":
-        # اینجا بعداً برش بهینه رو اضافه می‌کنیم
-        bot.send_message(msg.chat.id, "در حال توسعه برش بهینه پیشرفته... به زودی!")
-
     elif state == "order":
         bot.send_message(msg.chat.id, "سفارشت ثبت شد! به زودی تماس می‌گیرم 🙏", reply_markup=main_menu())
-        # می‌تونی اینجا فوروارد به ادمین اضافه کنی
+        user_state.pop(msg.chat.id, None)  # پایان حالت سفارش
+
+    elif state == "cut":
+        bot.send_message(msg.chat.id, "در حال توسعه برش بهینه پیشرفته... به زودی نقشه واقعی اضافه می‌شه!")
 
     else:
         bot.send_message(msg.chat.id, "از منوی زیر انتخاب کن 👇", reply_markup=main_menu())
@@ -184,7 +189,7 @@ def webhook():
 
 @app.route("/")
 def home():
-    return "نجاری حسین تراب‌پرور آنلاینه 🛠️"
+    return "بات نجاری حسین تراب‌پرور آنلاینه 🛠️"
 
 if __name__ == "__main__":
     log.info("بات نجاری حسین تراب‌پرور در حال اجراست...")
