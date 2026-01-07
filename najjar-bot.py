@@ -18,8 +18,10 @@ log = logging.getLogger(__name__)
 # Environment
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-ADMIN_TELEGRAM = "@dragonfly_support"  # ← ایدی واقعی خودت رو اینجا بنویس (با @)
-ADMIN_PHONE = "09304413044"              # ← شماره تلفن واقعی خودت رو اینجا بنویس
+
+# اطلاعات تماس ادمین (خودت)
+ADMIN_TELEGRAM_LINK = "https://t.me/dragonfly_support"  # لینک مستقیم تلگرامت
+ADMIN_PHONE = "09304413044"  # شماره تلفن واقعی خودت
 
 if not TELEGRAM_TOKEN or not OPENAI_API_KEY:
     log.error("TELEGRAM_TOKEN or OPENAI_API_KEY missing!")
@@ -29,7 +31,8 @@ if not TELEGRAM_TOKEN or not OPENAI_API_KEY:
 bot = TeleBot(TELEGRAM_TOKEN)
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-user_state = {}
+user_state = {}  # وضعیت کاربر
+user_data = {}   # داده‌های برش بهینه
 IMG_PATH = Path("images")
 
 # Keyboards
@@ -84,65 +87,32 @@ def catalog(msg):
 @bot.message_handler(func=lambda m: m.text == "✂️ برش بهینه")
 def cut_optimize(msg):
     user_state[msg.chat.id] = "cut_stock"
-    bot.send_message(msg.chat.id, "✂️ برش بهینه شروع شد!\n\nابتدا ابعاد ورق اصلی رو بفرست (به cm):\nمثال: 183x366")
-
-@bot.message_handler(func=lambda m: user_state.get(m.chat.id) in ["cut_stock", "cut_parts"])
-def cut_handler(msg):
-    cid = msg.chat.id
-    state = user_state[cid]
-
-    if state == "cut_stock":
-        try:
-            w, h = map(float, msg.text.split('x'))
-            user_data[cid] = {"stock": (w, h), "parts": []}
-            bot.send_message(cid, f"ورق اصلی ثبت شد: {w}×{h} cm ✅\n\nحالا ابعاد قطعات رو یکی یکی بفرست:\nمثال: 100x50\nوقتی تموم شد بنویس: تمام")
-            user_state[cid] = "cut_parts"
-        except:
-            bot.send_message(cid, "فرمت اشتباه! مثال: 183x366")
-
-    elif state == "cut_parts":
-        if msg.text.lower() == "تمام":
-            # اینجا بعداً نقشه واقعی می‌فرستیم
-            bot.send_message(cid, "در حال محاسبه برش بهینه...\nبه زودی نقشه واقعی و درصد پرتی رو می‌فرستم 🛠️\n(نسخه کامل به زودی اضافه می‌شه)")
-            del user_data[cid]
-            user_state.pop(cid, None)
-            bot.send_message(cid, "چیزی دیگه نیاز داری؟", reply_markup=main_menu())
-        else:
-            try:
-                w, h = map(float, msg.text.split('x'))
-                user_data[cid]["parts"].append((w, h))
-                bot.send_message(cid, f"قطعه {w}×{h} اضافه شد ✅\nقطعه بعدی یا 'تمام'")
-            except:
-                bot.send_message(cid, "فرمت اشتباه! مثال: 100x50")
-    # ادامه در chat handler
-
-@bot.message_handler(func=lambda m: m.text == "📞 تماس با من")
-def contact_me(msg):
+    user_data[msg.chat.id] = {"parts": []}
     try:
-        with open(IMG_PATH / "contact.jpg", "rb") as photo:  # عکس تماس اگر داری
+        with open(IMG_PATH / "cut.jpg", "rb") as photo:
             bot.send_photo(
                 msg.chat.id,
                 photo,
-                caption=(
-                    "📞 برای مشاوره مستقیم و سریع با من در ارتباط باش:\n\n"
-                    f"تلگرام: {ADMIN_TELEGRAM}\n"
-                    f"شماره تلفن: {ADMIN_PHONE}\n\n"
-                    "هر سوالی داری، پیام بده یا زنگ بزن — همیشه در خدمتم 🛠️😊"
-                ),
-                reply_markup=main_menu()
+                caption="✂️ برش بهینه پیشرفته — کمترین پرتی!\n\nابعاد ورق اصلی رو بفرست (به cm):\nمثال: 183x366"
             )
     except Exception as e:
-        log.error(f"[Contact Photo Error] {e}")
-        bot.send_message(
-            msg.chat.id,
-            (
-                "📞 برای مشاوره مستقیم با من در ارتباط باش:\n\n"
-                f"تلگرام: {ADMIN_TELEGRAM}\n"
-                f"شماره تلفن: {ADMIN_PHONE}\n\n"
-                "هر سوالی داری، پیام بده یا زنگ بزن — همیشه در خدمتم 🛠️😊"
-            ),
-            reply_markup=main_menu()
-        )
+        log.error(f"[Cut Photo Error] {e}")
+        bot.send_message(msg.chat.id, "ابعاد ورق اصلی رو بفرست (مثال: 183x366)")
+
+@bot.message_handler(func=lambda m: m.text == "📞 تماس با من")
+def contact_me(msg):
+    bot.send_message(
+        msg.chat.id,
+        (
+            "📞 برای مشاوره مستقیم و سریع با من در ارتباط باش:\n\n"
+            f"تلگرام: {ADMIN_TELEGRAM_LINK}\n"
+            f"شماره تلفن: <code>{ADMIN_PHONE}</code>\n\n"
+            "کافیه روی لینک تلگرام کلیک کنی، مستقیم وارد چت می‌شی 🛠️😊"
+        ),
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        reply_markup=main_menu()
+    )
 
 @bot.message_handler(func=lambda m: m.text == "📦 ثبت سفارش")
 def order(msg):
@@ -179,40 +149,53 @@ def digital_hossein(msg):
             "سوالت چیه؟"
         )
 
-# General Chat Handler
+# General Chat Handler — اصلاح شده (مهم‌ترین بخش!)
 @bot.message_handler(func=lambda m: True)
 def chat(msg):
-    state = user_state.get(msg.chat.id)
+    cid = msg.chat.id
+    state = user_state.get(cid)
 
     if state == "digital_hossein":
         try:
             reply = h_agent.generate_response(msg.text)
-            bot.send_message(msg.chat.id, reply)
+            bot.send_message(cid, reply)
         except Exception as e:
             log.error(f"[H Agent Error] {e}")
-            bot.send_message(msg.chat.id, "متاسفانه نسخه دیجیتال الان در دسترس نیست 😔 دوباره امتحان کن.")
-        # ادامه چت
-        bot.register_next_step_handler_by_chat_id(msg.chat.id, chat)
+            bot.send_message(cid, "متاسفانه نسخه دیجیتال الان در دسترس نیست 😔 دوباره امتحان کن.")
+        bot.register_next_step_handler_by_chat_id(cid, chat)
 
-    elif state == "quick_ai":
+    elif state == "cut_stock":
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": msg.text}]
-            )
-            bot.send_message(msg.chat.id, response.choices[0].message.content)
-        except Exception as e:
-            bot.send_message(msg.chat.id, "خطا در هوش مصنوعی — دوباره امتحان کن.")
+            w, h = map(float, msg.text.split('x'))
+            user_data[cid]["stock"] = (w, h)
+            user_data[cid]["parts"] = []
+            bot.send_message(cid, f"ورق اصلی ثبت شد: {w}×{h} cm ✅\n\nحالا ابعاد قطعات رو یکی یکی بفرست:\nمثال: 100x50\nوقتی تموم شد بنویس: تمام")
+            user_state[cid] = "cut_parts"
+        except:
+            bot.send_message(cid, "فرمت اشتباه! مثال درست: 183x366")
+
+    elif state == "cut_parts":
+        if msg.text.lower() == "تمام":
+            bot.send_message(cid, "در حال محاسبه برش بهینه...\nبه زودی نقشه واقعی و درصد پرتی رو می‌فرستم 🛠️")
+            if cid in user_data:
+                del user_data[cid]
+            user_state.pop(cid, None)
+            bot.send_message(cid, "چیزی دیگه نیاز داری؟", reply_markup=main_menu())
+        else:
+            try:
+                w, h = map(float, msg.text.split('x'))
+                user_data[cid]["parts"].append((w, h))
+                bot.send_message(cid, f"قطعه {w}×{h} اضافه شد ✅\nقطعه بعدی یا 'تمام'")
+            except:
+                bot.send_message(cid, "فرمت اشتباه! مثال درست: 100x50")
 
     elif state == "order":
-        bot.send_message(msg.chat.id, "سفارشت ثبت شد! به زودی تماس می‌گیرم 🙏", reply_markup=main_menu())
-        user_state.pop(msg.chat.id, None)  # پایان حالت سفارش
-
-    elif state == "cut":
-        bot.send_message(msg.chat.id, "در حال توسعه برش بهینه پیشرفته... به زودی نقشه واقعی اضافه می‌شه!")
+        bot.send_message(cid, "سفارشت ثبت شد! به زودی تماس می‌گیرم 🙏", reply_markup=main_menu())
+        user_state.pop(cid, None)
 
     else:
-        bot.send_message(msg.chat.id, "از منوی زیر انتخاب کن 👇", reply_markup=main_menu())
+        # اگر هیچ حالتی نبود — فقط منو نشون بده
+        bot.send_message(cid, "از منوی زیر انتخاب کن 👇", reply_markup=main_menu())
 
 # Flask Webhook
 app = Flask(__name__)
