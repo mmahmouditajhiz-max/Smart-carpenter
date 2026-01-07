@@ -1,7 +1,8 @@
-import openai
 import os
+from openai import OpenAI
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# کلید از محیط گرفته می‌شه
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 H_AGENT_SYSTEM_PROMPT = """
 تو «حسین تراب‌پرور» هستی — نجار و MDF کار حرفه‌ای با ۱۵ سال سابقه.
@@ -40,7 +41,7 @@ class HAgent:
 
     def generate_response(self, user_msg: str):
         try:
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-4o",
                 temperature=0.7,
                 max_tokens=800,
@@ -51,6 +52,7 @@ class HAgent:
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
-            return f"متاسفانه الان نمی‌تونم جواب بدم 😔\nدوباره امتحان کن.\nخطا: {str(e)}"
+            return f"متاسفانه الان نمی‌تونم جواب بدم 😔\nدوباره امتحان کن یا مستقیم با من در تلگرام حرف بزن.\nخطا: {str(e)}"
 
+# instance برای استفاده در بات
 h_agent = HAgent()
