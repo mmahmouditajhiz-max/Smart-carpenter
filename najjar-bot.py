@@ -18,6 +18,8 @@ log = logging.getLogger(__name__)
 # Environment
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ADMIN_TELEGRAM = "@dragonfly_support"  # ← ایدی واقعی خودت رو اینجا بنویس (با @)
+ADMIN_PHONE = "09304413044"              # ← شماره تلفن واقعی خودت رو اینجا بنویس
 
 if not TELEGRAM_TOKEN or not OPENAI_API_KEY:
     log.error("TELEGRAM_TOKEN or OPENAI_API_KEY missing!")
@@ -228,6 +230,7 @@ def home():
 if __name__ == "__main__":
     log.info("بات نجاری حسین تراب‌پرور در حال اجراست...")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
