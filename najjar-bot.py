@@ -81,17 +81,37 @@ def catalog(msg):
 
 @bot.message_handler(func=lambda m: m.text == "✂️ برش بهینه")
 def cut_optimize(msg):
-    user_state[msg.chat.id] = "cut"
-    try:
-        with open(IMG_PATH / "cut.jpg", "rb") as photo:
-            bot.send_photo(
-                msg.chat.id,
-                photo,
-                caption="✂️ برش بهینه پیشرفته — کمترین پرتی، بیشترین صرفه!\n\nابعاد ورق اصلی رو بفرست (مثال: 183x366)"
-            )
-    except Exception as e:
-        log.error(f"[Cut Photo Error] {e}")
-        bot.send_message(msg.chat.id, "ابعاد ورق اصلی رو بفرست (مثال: 183x366)")
+    user_state[msg.chat.id] = "cut_stock"
+    bot.send_message(msg.chat.id, "✂️ برش بهینه شروع شد!\n\nابتدا ابعاد ورق اصلی رو بفرست (به cm):\nمثال: 183x366")
+
+@bot.message_handler(func=lambda m: user_state.get(m.chat.id) in ["cut_stock", "cut_parts"])
+def cut_handler(msg):
+    cid = msg.chat.id
+    state = user_state[cid]
+
+    if state == "cut_stock":
+        try:
+            w, h = map(float, msg.text.split('x'))
+            user_data[cid] = {"stock": (w, h), "parts": []}
+            bot.send_message(cid, f"ورق اصلی ثبت شد: {w}×{h} cm ✅\n\nحالا ابعاد قطعات رو یکی یکی بفرست:\nمثال: 100x50\nوقتی تموم شد بنویس: تمام")
+            user_state[cid] = "cut_parts"
+        except:
+            bot.send_message(cid, "فرمت اشتباه! مثال: 183x366")
+
+    elif state == "cut_parts":
+        if msg.text.lower() == "تمام":
+            # اینجا بعداً نقشه واقعی می‌فرستیم
+            bot.send_message(cid, "در حال محاسبه برش بهینه...\nبه زودی نقشه واقعی و درصد پرتی رو می‌فرستم 🛠️\n(نسخه کامل به زودی اضافه می‌شه)")
+            del user_data[cid]
+            user_state.pop(cid, None)
+            bot.send_message(cid, "چیزی دیگه نیاز داری؟", reply_markup=main_menu())
+        else:
+            try:
+                w, h = map(float, msg.text.split('x'))
+                user_data[cid]["parts"].append((w, h))
+                bot.send_message(cid, f"قطعه {w}×{h} اضافه شد ✅\nقطعه بعدی یا 'تمام'")
+            except:
+                bot.send_message(cid, "فرمت اشتباه! مثال: 100x50")
     # ادامه در chat handler
 
 @bot.message_handler(func=lambda m: m.text == "📞 تماس با من")
@@ -208,6 +228,7 @@ def home():
 if __name__ == "__main__":
     log.info("بات نجاری حسین تراب‌پرور در حال اجراست...")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
