@@ -42,7 +42,7 @@ class HAgent:
     def generate_response(self, user_msg: str):
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o",  # یا "gpt-3.5-turbo" برای هزینه کمتر
                 temperature=0.7,
                 max_tokens=800,
                 messages=[
@@ -52,7 +52,17 @@ class HAgent:
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
-            return f"متاسفانه الان نمی‌تونم جواب بدم 😔\nدوباره امتحان کن یا مستقیم با من در تلگرام حرف بزن.\nخطا: {str(e)}"
+            error_msg = (
+                "متاسفانه الان نمی‌تونم جواب بدم 😔\n\n"
+                "📞 **راه‌های دیگر ارتباط:**\n"
+                "• مستقیم با من در تلگرام صحبت کنید\n"
+                "• از طریق واتساپ پیام بدهید\n"
+                "• با شماره تماس بگیرید\n\n"
+                "⏳ لطفاً کمی بعد دوباره امتحان کنید."
+            )
+            log.error(f"HAgent Error: {str(e)}")
+            return error_msg
 
 # instance برای استفاده در بات
 h_agent = HAgent()
+
